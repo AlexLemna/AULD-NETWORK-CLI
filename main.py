@@ -46,12 +46,25 @@ class AmbiguousCommandError(BaseCommandError):
 
 @dataclass(frozen=True)
 class Command:
-    tokens: Tuple[str, ...]  # e.g., ("configure",)
+    """A definition of a command in the shell."""
+
+    tokens: Tuple[str, ...] | str  # e.g., ("configure",)
     mode: Mode  # "user" or "admin"
     """The mode the command is available within."""
 
     handler: Callable[["Shell"], int]  # returns 0 for ok, <0 to request shell exit
     short_description: str = "(no help given)"  # brief help text
+
+    def __post_init__(self) -> None:
+        """Make sure tokens is a non-empty tuple of strings."""
+        match self.tokens:
+            case () | "":
+                msg = f"This command must have at least one token: {self}"
+                raise ValueError(msg)
+            case str():
+                # Even though our instance is frozen, we can use object.__setattr__
+                # to set the value of tokens to a tuple of strings.
+                object.__setattr__(self, "tokens", tuple(self.tokens.split()))
 
 
 class CommandRegistry:
@@ -175,10 +188,12 @@ class Shell:
                 continue
 
             line = line.strip()
+            # If empty line, just reprompt. Otherwise, split
+            # into tokens at whitespaces and try to resolve.
             if not line:
-                continue
-
-            tokens = line.split()
+                continue  # start the loop over again
+            else:
+                tokens = line.split()
 
             # Resolve and execute
             try:
