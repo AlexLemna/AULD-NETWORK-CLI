@@ -13,6 +13,37 @@ class Mode(Enum):
     ADMIN = "admin"
 
 
+# class ReturnCode(Enum):
+#     """Internal codes used by the commands in this CLI. Some of these codes reflect
+#     the error codes obtained from the shell scripts this CLI will glue together.
+#     Other codes are defined by the programmer for their own purposes."""
+
+"""Custom error classes for the Auld CLI.
+
+I'm defining custom errors here to represent specific error conditions
+raised by my code versus errors raised by the rest of Python."""
+
+
+class BaseCommandError(Exception):
+    """This is my base class for errors encountered by my command-line
+    interface. Some examples of these errors are:
+    - `CommandNotFoundError`
+    - `AmbiguousCommandError`
+    """
+
+
+class CommandNotFoundError(BaseCommandError):
+    """Raised when a command is not found."""
+
+    pass
+
+
+class AmbiguousCommandError(BaseCommandError):
+    """Raised when a command is ambiguous."""
+
+    pass
+
+
 @dataclass(frozen=True)
 class Command:
     tokens: Tuple[str, ...]  # e.g., ("configure",)
