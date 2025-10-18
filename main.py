@@ -126,6 +126,19 @@ def h_exit(shell: Shell) -> int:
     return -1
 
 
+def h_help(shell: Shell) -> int:
+    """Show all valid commands in the current mode."""
+    commands = shell.registry._by_mode[shell.mode]
+    if not commands:
+        print("No commands available in this mode.")
+        return 0
+
+    print(f"Available commands in {shell.mode.value} mode:")
+    for cmd in sorted(commands, key=lambda c: c.tokens):
+        print(f"  {' '.join(cmd.tokens)}")
+    return 0
+
+
 # ---- Wiring ---------------------------------------------------------------
 
 
@@ -135,6 +148,9 @@ def build_registry() -> CommandRegistry:
     # allow "exit" in both modes so abbreviations like "ex" work everywhere
     reg.register(Command(tokens=("exit",), mode=Mode.ADMIN, handler=h_exit))
     reg.register(Command(tokens=("exit",), mode=Mode.USER, handler=h_exit))
+    # help command available in both modes
+    reg.register(Command(tokens=("?",), mode=Mode.USER, handler=h_help))
+    reg.register(Command(tokens=("?",), mode=Mode.ADMIN, handler=h_help))
     return reg
 
 
