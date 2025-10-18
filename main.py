@@ -267,11 +267,13 @@ def h_show(shell: Shell) -> int:
 # ---- Wiring ---------------------------------------------------------------
 
 
-def main() -> int:
+def main():
     # Commands are auto-registered when handlers are defined
-    shell = Shell()
-    return shell.run()
+    try:
+        Shell().run()
+    except SystemExit:
+        raise
 
 
 if __name__ == "__main__":
-    raise SystemExit(main())
+    main()
