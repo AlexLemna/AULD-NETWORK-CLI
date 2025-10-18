@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict, List, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple
 
 
 class Mode(Enum):
@@ -20,8 +20,19 @@ class Command:
 
 
 class CommandRegistry:
-    def __init__(self) -> None:
-        self._by_mode: Dict[Mode, List[Command]] = {Mode.USER: [], Mode.ADMIN: []}
+    _instance = None
+
+    def __new__(cls):  # A singleton
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._by_mode = {Mode.USER: [], Mode.ADMIN: []}
+        return cls._instance
+
+    def __init__(self) -> None:  # A singleton
+        # Only initialize if not already initialized
+        if not hasattr(self, "_initialized"):
+            self._by_mode: Dict[Mode, List[Command]] = {Mode.USER: [], Mode.ADMIN: []}
+            self._initialized = True
 
     def register(self, cmd: Command) -> None:
         if cmd.mode not in self._by_mode:
@@ -68,9 +79,30 @@ class CommandRegistry:
         return full_matches[0]
 
 
+# Global registry instance for auto-registration
+_registry = CommandRegistry()
+
+
+def command(
+    tokens: Tuple[str, ...] | str, mode: Mode, description: str = "(no help given)"
+):
+    """Decorator to auto-register command handlers."""
+
+    def decorator(func: Callable[["Shell"], int]) -> Callable[["Shell"], int]:
+        # Convert string to tuple if needed
+        token_tuple = (tokens,) if isinstance(tokens, str) else tokens
+        cmd = Command(
+            tokens=token_tuple, mode=mode, handler=func, short_description=description
+        )
+        _registry.register(cmd)
+        return func
+
+    return decorator
+
+
 class Shell:
-    def __init__(self, registry: CommandRegistry) -> None:
-        self.registry = registry
+    def __init__(self, registry: Optional[CommandRegistry] = None) -> None:
+        self.registry = registry or _registry
         self.mode: Mode = Mode.USER
 
     def prompt(self) -> str:
@@ -114,11 +146,14 @@ class Shell:
 # ---- Handlers -------------------------------------------------------------
 
 
+@command("configure", Mode.USER, "Enter privileged configuration mode")
 def h_configure(shell: Shell) -> int:
     shell.mode = Mode.ADMIN
     return 0
 
 
+@command("exit", Mode.ADMIN, "Exit configuration mode")
+@command("exit", Mode.USER, "Exit the CLI")
 def h_exit(shell: Shell) -> int:
     if shell.mode == Mode.ADMIN:
         shell.mode = Mode.USER
@@ -127,6 +162,8 @@ def h_exit(shell: Shell) -> int:
     return -1
 
 
+@command("?", Mode.USER, "Show available commands")
+@command("?", Mode.ADMIN, "Show available commands")
 def h_help(shell: Shell) -> int:
     """Show all valid commands in the current mode."""
     commands = shell.registry._by_mode[shell.mode]
@@ -141,23 +178,20 @@ def h_help(shell: Shell) -> int:
     return 0
 
 
+@command("show", Mode.ADMIN, "Show system information")
+def h_show(shell: Shell) -> int:
+    """Example admin command."""
+    print("System status: OK")
+    print("Current mode:", shell.mode.value)
+    return 0
+
+
 # ---- Wiring ---------------------------------------------------------------
 
 
-def build_registry() -> CommandRegistry:
-    reg = CommandRegistry()
-    reg.register(Command(tokens=("configure",), mode=Mode.USER, handler=h_configure))
-    # allow "exit" in both modes so abbreviations like "ex" work everywhere
-    reg.register(Command(tokens=("exit",), mode=Mode.ADMIN, handler=h_exit))
-    reg.register(Command(tokens=("exit",), mode=Mode.USER, handler=h_exit))
-    # help command available in both modes
-    reg.register(Command(tokens=("?",), mode=Mode.USER, handler=h_help))
-    reg.register(Command(tokens=("?",), mode=Mode.ADMIN, handler=h_help))
-    return reg
-
-
 def main() -> int:
-    shell = Shell(build_registry())
+    # Commands are auto-registered when handlers are defined
+    shell = Shell()
     return shell.run()
 
 
