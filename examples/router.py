@@ -13,7 +13,7 @@ import logging
 import shlex
 import subprocess
 import sys
-from ipaddress import ip_network, ip_address
+from ipaddress import ip_address, ip_network
 from pathlib import Path
 
 PROMPT = "Router> "
@@ -23,37 +23,50 @@ log = logging.getLogger("router")
 
 PS_SCRIPT = str((Path(__file__).parent / "network.ps1").resolve())
 
+
 def is_admin():
     try:
         return bool(ctypes.windll.shell32.IsUserAnAdmin())
     except Exception:
         return False
 
+
 def run_ps(action: str, payload: dict) -> tuple[int, str, str]:
     cmd = [
         "powershell",
         "-NoLogo",
         "-NoProfile",
-        "-ExecutionPolicy", "Bypass",
-        "-File", PS_SCRIPT,
-        "-Action", action,
-        "-JsonArgs", json.dumps(payload)
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        PS_SCRIPT,
+        "-Action",
+        action,
+        "-JsonArgs",
+        json.dumps(payload),
     ]
     proc = subprocess.run(cmd, capture_output=True, text=True)
     return proc.returncode, proc.stdout.strip(), proc.stderr.strip()
 
-def cisco_mask_to_prefix(mask: str) -> int:
+
+# WORKING ON
+def mask_to_cidr(mask: str) -> int:
     parts = [int(x) for x in mask.split(".")]
     n = 0
     for p in parts:
+        match p:
+            case 0 | 128 | 192 | 224 | 240 | 248 | 252 | 254 | 255:
+                pass
         if p < 0 or p > 255:
             raise ValueError("invalid mask")
         n += bin(p).count("1")
     return n
 
+
 def ipv4_prefix(dest: str, mask: str) -> str:
-    plen = cisco_mask_to_prefix(mask)
+    plen = mask_to_cidr(mask)
     return f"{dest}/{plen}"
+
 
 def is_ipv6(s: str) -> bool:
     try:
@@ -61,12 +74,18 @@ def is_ipv6(s: str) -> bool:
     except Exception:
         return ":" in s
 
+
 class RouterCLI:
     def __init__(self, cfg: Path):
         self.config_path = cfg
         self.in_config = False
         self.iface = None
-        self.running = {"hostname": "Router", "interfaces": {}, "routes_v4": [], "routes_v6": []}
+        self.running = {
+            "hostname": "Router",
+            "interfaces": {},
+            "routes_v4": [],
+            "routes_v6": [],
+        }
         self._load()
 
     def _load(self):
@@ -97,11 +116,11 @@ class RouterCLI:
         # Cisco-clean: Interface  IP              Status
         lines = []
         for itf in items:
-            name = itf.get("Name","")
-            admin = itf.get("AdminStatus","down")
-            oper  = itf.get("OperStatus","down")
-            status = "up" if (admin=="Up" and oper=="Up") else "down"
-            ips = itf.get("IPv4",[]) if v=="IPv4" else itf.get("IPv6",[])
+            name = itf.get("Name", "")
+            admin = itf.get("AdminStatus", "down")
+            oper = itf.get("OperStatus", "down")
+            status = "up" if (admin == "Up" and oper == "Up") else "down"
+            ips = itf.get("IPv4", []) if v == "IPv4" else itf.get("IPv6", [])
             ip1 = ips[0] if ips else "unassigned"
             lines.append(f"{name:25} {ip1:40} {status}")
         hdr = f"{'Interface':25} {'IP address':40} {'Status'}"
@@ -120,7 +139,9 @@ class RouterCLI:
         hdr = f"{'Prefix':25} {'NextHop':25} {'Iface':20} {'Metric':6}"
         lines = []
         for r in routes:
-            lines.append(f"{r.get('Destination',''):25} {r.get('NextHop','-'):25} {r.get('InterfaceAlias',''):20} {str(r.get('RouteMetric','')):6}")
+            lines.append(
+                f"{r.get('Destination',''):25} {r.get('NextHop','-'):25} {r.get('InterfaceAlias',''):20} {str(r.get('RouteMetric','')):6}"
+            )
         log.info(hdr + "\n" + "\n".join(lines) if lines else "No routes")
 
     # ---------- exec ----------
@@ -148,10 +169,12 @@ class RouterCLI:
             except Exception:
                 log.info("IPv6 usage: ipv6 address <addr> <prefixlen>")
                 return
-            payload = {"Name": name, "Version":"IPv6", "Prefix": prefix}
+            payload = {"Name": name, "Version": "IPv6", "Prefix": prefix}
             rc, out, err = run_ps("SetIP", payload)
             log.info(out or err or "OK")
-            self.running["interfaces"].setdefault(name, {}).setdefault("ipv6", []).append(prefix)
+            self.running["interfaces"].setdefault(name, {}).setdefault(
+                "ipv6", []
+            ).append(prefix)
         else:
             # IPv4 expects dotted mask. Convert to prefix.
             try:
@@ -159,26 +182,37 @@ class RouterCLI:
             except Exception:
                 log.info("IPv4 usage: ip address <addr> <mask>")
                 return
-            payload = {"Name": name, "Version":"IPv4", "Prefix": prefix}
+            payload = {"Name": name, "Version": "IPv4", "Prefix": prefix}
             rc, out, err = run_ps("SetIP", payload)
             log.info(out or err or "OK")
-            self.running["interfaces"].setdefault(name, {}).setdefault("ipv4", []).append(prefix)
+            self.running["interfaces"].setdefault(name, {}).setdefault(
+                "ipv4", []
+            ).append(prefix)
 
     def int_shutdown(self, name: str, down: bool):
         action = "DisableInterface" if down else "EnableInterface"
         rc, out, err = run_ps(action, {"Name": name})
         log.info(out or err or "OK")
-        self.running["interfaces"].setdefault(name, {})["admin"] = "down" if down else "up"
+        self.running["interfaces"].setdefault(name, {})["admin"] = (
+            "down" if down else "up"
+        )
 
-    def add_route(self, v: str, dest: str, mask_or_plen: str, gw: str, iface: str|None):
+    def add_route(
+        self, v: str, dest: str, mask_or_plen: str, gw: str, iface: str | None
+    ):
         if v == "IPv4":
             prefix = ipv4_prefix(dest, mask_or_plen)
         else:
             prefix = f"{dest}/{mask_or_plen}" if "/" not in dest else dest
-        payload = {"Version": v, "Destination": prefix, "NextHop": gw, "InterfaceAlias": iface}
+        payload = {
+            "Version": v,
+            "Destination": prefix,
+            "NextHop": gw,
+            "InterfaceAlias": iface,
+        }
         rc, out, err = run_ps("AddRoute", payload)
         log.info(out or err or "OK")
-        key = "routes_v4" if v=="IPv4" else "routes_v6"
+        key = "routes_v4" if v == "IPv4" else "routes_v6"
         self.running[key].append({"prefix": prefix, "gw": gw, "iface": iface or ""})
 
     # ---------- dispatcher ----------
@@ -224,13 +258,19 @@ class RouterCLI:
                 log.info("Unknown interface command")
                 return
             if line.lower().startswith("hostname "):
-                self.running["hostname"] = line.split(None,1)[1]
+                self.running["hostname"] = line.split(None, 1)[1]
                 log.info("OK")
                 return
             if line.lower().startswith("ip route "):
                 parts = shlex.split(line)[2:]
                 if len(parts) >= 3:
-                    self.add_route("IPv4", parts[0], parts[1], parts[2], parts[3] if len(parts)>=4 else None)
+                    self.add_route(
+                        "IPv4",
+                        parts[0],
+                        parts[1],
+                        parts[2],
+                        parts[3] if len(parts) >= 4 else None,
+                    )
                 else:
                     log.info("Usage: ip route <DEST> <MASK> <GW> [IFACE]")
                 return
@@ -239,7 +279,7 @@ class RouterCLI:
                 if len(parts) >= 2:
                     dest = parts[0]
                     gw = parts[1]
-                    iface = parts[2] if len(parts)>=3 else None
+                    iface = parts[2] if len(parts) >= 3 else None
                     # allow DEST as prefix or (addr plen)
                     if "/" not in dest and len(parts) >= 3:
                         log.info("Usage: ipv6 route <PREFIX> <GW> [IFACE]")
@@ -271,10 +311,10 @@ class RouterCLI:
             self.show_routes("IPv6")
             return
         if line.startswith("ping "):
-            self.do_ping(line.split(None,1)[1])
+            self.do_ping(line.split(None, 1)[1])
             return
         if line.startswith("traceroute "):
-            self.do_traceroute(line.split(None,1)[1])
+            self.do_traceroute(line.split(None, 1)[1])
             return
         if line in ("write memory", "copy running-config startup-config", "save"):
             self._save()
@@ -302,11 +342,15 @@ class RouterCLI:
             else:
                 self.onecmd(line)
 
+
 def main():
     p = argparse.ArgumentParser()
-    p.add_argument("-c","--config", type=Path, default=Path.cwd()/ "running-config.json")
+    p.add_argument(
+        "-c", "--config", type=Path, default=Path.cwd() / "running-config.json"
+    )
     args = p.parse_args()
     RouterCLI(args.config).loop()
+
 
 if __name__ == "__main__":
     main()
