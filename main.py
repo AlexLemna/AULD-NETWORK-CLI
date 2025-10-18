@@ -16,6 +16,7 @@ class Command:
     tokens: Tuple[str, ...]  # e.g., ("configure",)
     mode: Mode  # "user" or "admin"
     handler: Callable[["Shell"], int]  # returns 0 for ok, <0 to request shell exit
+    short_description: str = "(no help given)"  # brief help text
 
 
 class CommandRegistry:
@@ -135,7 +136,8 @@ def h_help(shell: Shell) -> int:
 
     print(f"Available commands in {shell.mode.value} mode:")
     for cmd in sorted(commands, key=lambda c: c.tokens):
-        print(f"  {' '.join(cmd.tokens)}")
+        first_column = f"  {' '.join(cmd.tokens)}"
+        print(f"{first_column:<30} {cmd.short_description}")
     return 0
 
 
