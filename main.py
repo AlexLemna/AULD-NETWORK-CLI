@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
-from typing import Callable, Dict, List, Optional, Sequence, Tuple
+from typing import Callable, Dict, List, Optional, Sequence, Tuple, assert_never
 
 
 class Mode(Enum):
@@ -105,7 +105,19 @@ class Shell:
         self.mode: Mode = Mode.USER
 
     def prompt(self) -> str:
-        return "cli# " if self.mode == Mode.ADMIN else "cli> "
+        """Returns the prompt string based on current mode. If `Mode.USER`,
+        use '>'; if `Mode.ADMIN`, use '#'."""
+        text = "Auld CLI"
+        match self.mode:
+            case Mode.USER:
+                text += ">"
+            case Mode.ADMIN:
+                text += "#"
+            case _:
+                # This should never happen. We use `assert_never` to
+                # tell type checkers that this branch should be unreachable.
+                assert_never(self.mode)
+        return f"{text} "
 
     def run(self) -> int:
         while True:
@@ -154,11 +166,18 @@ def h_configure(shell: Shell) -> int:
 @command("exit", Mode.ADMIN, "Exit configuration mode")
 @command("exit", Mode.USER, "Exit the CLI")
 def h_exit(shell: Shell) -> int:
-    if shell.mode == Mode.ADMIN:
-        shell.mode = Mode.USER
-        return 0
-    # already in user mode → exit program
-    return -1
+    """Exit from admin mode to user mode, or exit the program if already
+    in user mode."""
+    match shell.mode:
+        case Mode.ADMIN:
+            # if in admin mode, return to user mode
+            shell.mode = Mode.USER
+            return 0
+        case Mode.USER:
+            # already in user mode → exit program
+            raise SystemExit
+        case _:
+            assert_never(shell.mode)
 
 
 @command("?", Mode.USER, "Show available commands")
