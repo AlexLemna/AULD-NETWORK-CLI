@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from . import commands  # noqa: F401
 from .cli_args import parse_args, setup_logging_from_args
 from .command_types import Command, CommandRegistry, _registry, command
 from .commands import cmd_configure, cmd_exit, cmd_help, cmd_show
 from .miscellaneous_types import ShellMode
+from .program_constants import PROGRAM_CONSTANTS
 from .program_exceptions import (
     AmbiguousCommandError,
     BaseCommandError,
@@ -15,7 +15,7 @@ from .program_exceptions import (
 from .program_logging import log_shutdown, log_startup
 from .shell import Shell
 
-__version__ = "0.1.0"
+__version__ = PROGRAM_CONSTANTS.VERSION
 __all__ = [
     "Command",
     "CommandRegistry",

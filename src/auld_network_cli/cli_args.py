@@ -7,7 +7,7 @@ from logging import getLevelName
 from pathlib import Path
 from typing import Optional
 
-from .program_defaults import DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
+from .program_constants import DEFAULT_LOG_FILE, DEFAULT_LOG_LEVEL
 
 
 def parse_args(args: Optional[list[str]] = None) -> argparse.Namespace:
