@@ -6,6 +6,7 @@ from typing import Optional, assert_never
 
 from .commands import CommandRegistry, _registry
 from .custom_types import Mode
+from .logging_config import get_logger, log_command_execution, log_mode_change
 
 
 class Shell:
@@ -22,6 +23,8 @@ class Shell:
     def __init__(self, registry: Optional[CommandRegistry] = None) -> None:
         self.registry = registry or _registry
         self.mode: Mode = Mode.USER
+        self.logger = get_logger("shell")
+        self.logger.debug("Shell initialized")
 
     def prompt(self) -> str:
         """Returns the prompt string based on current mode.
@@ -45,13 +48,16 @@ class Shell:
 
         Returns an exit code where 0 indicates success and 1 indicates failure.
         """
+        self.logger.info("Starting CLI shell REPL loop")
         while True:
             try:
                 line = input(self.prompt())
             except EOFError:
+                self.logger.debug("Received EOF, exiting")
                 print()
                 return 0
             except KeyboardInterrupt:
+                self.logger.debug("Received KeyboardInterrupt, continuing")
                 print()
                 continue
 
@@ -63,19 +69,37 @@ class Shell:
             else:
                 tokens = line.split()
 
+            self.logger.debug(f"Processing command: {tokens} in {self.mode.value} mode")
+
             # Resolve and execute
             try:
                 cmd = self.registry.resolve(self.mode, tokens)
             except ValueError as e:
+                self.logger.warning(f"Command resolution failed: {e}")
                 print(e)
+                log_command_execution(tokens, self.mode.value, False)
                 continue
 
             rc = 0
+            old_mode = self.mode
             try:
+                self.logger.debug(f"Executing command handler: {cmd.tokens}")
                 rc = cmd.handler(self)
+                log_command_execution(tokens, old_mode.value, rc >= 0)
+
+                # Log mode changes
+                if old_mode != self.mode:
+                    log_mode_change(old_mode.value, self.mode.value)
+
             except Exception as e:
+                self.logger.error(
+                    f"Handler error for command '{' '.join(tokens)}': {e}",
+                    exc_info=True,
+                )
                 print(f"handler error: {e}")
+                log_command_execution(tokens, old_mode.value, False)
                 rc = 1
 
             if rc < 0:
+                self.logger.info("Shell exit requested by command")
                 return 0

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple
 
@@ -9,6 +10,11 @@ from .custom_types import Mode
 
 if TYPE_CHECKING:
     from .shell import Shell
+
+
+def get_logger(name: str) -> logging.Logger:
+    """Get logger for commands module."""
+    return logging.getLogger(f"auld_network_cli.{name}")
 
 
 @dataclass(frozen=True)
@@ -52,12 +58,20 @@ class CommandRegistry:
 
     def register(self, cmd: Command) -> None:
         """Registers a `Command` in the `CommandRegistry`."""
+        logger = get_logger("commands")
+
         # prevent duplicates on exact tokens
         if any(c.tokens == cmd.tokens for c in self._by_mode[cmd.mode]):
+            logger.error(
+                f"Attempted to register duplicate command: {' '.join(cmd.tokens)} in {cmd.mode}"
+            )
             raise ValueError(
                 f"duplicate command in mode {cmd.mode}: {' '.join(cmd.tokens)}"
             )
         self._by_mode[cmd.mode].append(cmd)
+        logger.info(
+            f"Registered command: {' '.join(cmd.tokens)} in {cmd.mode.value} mode"
+        )
 
     def _candidates_for_prefix(
         self, mode: Mode, input_tokens: Sequence[str]

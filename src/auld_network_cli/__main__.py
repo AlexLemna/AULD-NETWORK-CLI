@@ -6,7 +6,7 @@ This allows the package to be run with:
 
 from __future__ import annotations
 
-from auld_network_cli import main
+from . import main
 
 if __name__ == "__main__":
     main()
