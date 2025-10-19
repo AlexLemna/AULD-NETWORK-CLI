@@ -4,34 +4,34 @@ from __future__ import annotations
 
 from typing import assert_never
 
-from .commands import command
-from .custom_types import Mode
-from .logging_config import get_logger
+from .command_types import command
+from .program_logging import get_logger
+from .miscellaneous_types import ShellMode
 from .shell import Shell
 
 
-@command("configure", Mode.USER, "Enter privileged configuration mode")
+@command("configure", ShellMode.USER, "Enter privileged configuration mode")
 def h_configure(shell: Shell) -> int:
     """Enter admin (privileged) mode from user mode."""
     logger = get_logger("handlers")
     logger.info("Entering privileged configuration mode")
-    shell.mode = Mode.ADMIN
+    shell.mode = ShellMode.ADMIN
     return 0
 
 
-@command("exit", Mode.ADMIN, "Exit configuration mode")
-@command("exit", Mode.USER, "Exit the CLI")
+@command("exit", ShellMode.ADMIN, "Exit configuration mode")
+@command("exit", ShellMode.USER, "Exit the CLI")
 def h_exit(shell: Shell) -> int:
     """Exit from admin mode to user mode, or exit the program if already
     in user mode."""
     logger = get_logger("handlers")
     match shell.mode:
-        case Mode.ADMIN:
+        case ShellMode.ADMIN:
             # if in admin mode, return to user mode
             logger.info("Exiting configuration mode, returning to user mode")
-            shell.mode = Mode.USER
+            shell.mode = ShellMode.USER
             return 0
-        case Mode.USER:
+        case ShellMode.USER:
             # already in user mode → exit program
             logger.info("Exiting CLI from user mode")
             raise SystemExit
@@ -39,8 +39,8 @@ def h_exit(shell: Shell) -> int:
             assert_never(shell.mode)
 
 
-@command("?", Mode.USER, "Show available commands")
-@command("?", Mode.ADMIN, "Show available commands")
+@command("?", ShellMode.USER, "Show available commands")
+@command("?", ShellMode.ADMIN, "Show available commands")
 def h_help(shell: Shell) -> int:
     """Show all valid commands in the current mode."""
     logger = get_logger("handlers")
@@ -61,7 +61,7 @@ def h_help(shell: Shell) -> int:
     return 0
 
 
-@command("show", Mode.ADMIN, "Show system information")
+@command("show", ShellMode.ADMIN, "Show system information")
 def h_show(shell: Shell) -> int:
     """Example admin command."""
     logger = get_logger("handlers")

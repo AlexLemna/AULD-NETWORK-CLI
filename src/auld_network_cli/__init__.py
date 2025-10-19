@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from . import handlers  # noqa: F401
+from . import commands  # noqa: F401
 from .cli_args import parse_args, setup_logging_from_args
-from .commands import Command, CommandRegistry, _registry, command
-from .custom_types import Mode
-from .exceptions import AmbiguousCommandError, BaseCommandError, CommandNotFoundError
-from .handlers import h_configure, h_exit, h_help, h_show
-from .logging_config import log_shutdown, log_startup
+from .command_types import Command, CommandRegistry, _registry, command
+from .commands import cmd_configure, cmd_exit, cmd_help, cmd_show
+from .miscellaneous_types import ShellMode
+from .program_exceptions import (
+    AmbiguousCommandError,
+    BaseCommandError,
+    CommandNotFoundError,
+)
+from .program_logging import log_shutdown, log_startup
 from .shell import Shell
 
 __version__ = "0.1.0"
@@ -21,11 +25,11 @@ __all__ = [
     "BaseCommandError",
     "CommandNotFoundError",
     "Shell",
-    "Mode",
-    "h_configure",
-    "h_exit",
-    "h_help",
-    "h_show",
+    "ShellMode",
+    "cmd_configure",
+    "cmd_exit",
+    "cmd_help",
+    "cmd_show",
     "main",
 ]
 
@@ -47,7 +51,7 @@ def main() -> None:
         log_shutdown()
         raise
     except Exception as e:
-        from .logging_config import get_logger
+        from .program_logging import get_logger
 
         logger = get_logger("main")
         logger.error(f"Unexpected error: {e}", exc_info=True)

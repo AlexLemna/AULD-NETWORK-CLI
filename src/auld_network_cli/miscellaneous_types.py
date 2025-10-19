@@ -5,10 +5,10 @@ from __future__ import annotations
 from enum import Enum
 
 
-class Mode(Enum):
+class ShellMode(Enum):
     """The shell modes: user mode and admin (privileged) mode.
-    
-    This class is used by the shell to determine which commands are 
+
+    This class is used by the shell to determine which commands are
     available in the current context.
     """
 

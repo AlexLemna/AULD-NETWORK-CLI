@@ -56,7 +56,7 @@ def setup_logging_from_args(args: argparse.Namespace) -> None:
     Args:
         args: Parsed arguments from parse_args()
     """
-    from .logging_config import setup_logging
+    from .program_logging import setup_logging
 
     # Create logs directory if logging to file
     if args.log_file:

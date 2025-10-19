@@ -10,7 +10,7 @@ from typing import Optional
 
 
 def setup_logging(
-    level: str = "INFO",
+    level: str | int = "INFO",
     log_file: Optional[str] = None,
     console_output: bool = True,
 ) -> logging.Logger:
@@ -33,7 +33,10 @@ def setup_logging(
         logger.removeHandler(handler)
 
     # Set the logging level
-    numeric_level = getattr(logging, level.upper(), logging.INFO)
+    if isinstance(level, str):
+        numeric_level = getattr(logging, level.upper(), logging.INFO)
+    else:
+        numeric_level = level
     logger.setLevel(numeric_level)
 
     # Create formatters

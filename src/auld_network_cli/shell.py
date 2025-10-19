@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Optional, assert_never
 
-from .commands import CommandRegistry, _registry
-from .custom_types import Mode
-from .logging_config import get_logger, log_command_execution, log_mode_change
+from .command_types import CommandRegistry, _registry
+from .miscellaneous_types import ShellMode
+from .program_logging import get_logger, log_command_execution, log_mode_change
 
 
 class Shell:
@@ -22,7 +22,7 @@ class Shell:
 
     def __init__(self, registry: Optional[CommandRegistry] = None) -> None:
         self.registry = registry or _registry
-        self.mode: Mode = Mode.USER
+        self.mode: ShellMode = ShellMode.USER
         self.logger = get_logger("shell")
         self.logger.debug("Shell initialized")
 
@@ -33,9 +33,9 @@ class Shell:
         """
         text = "Auld CLI"
         match self.mode:
-            case Mode.USER:
+            case ShellMode.USER:
                 text += ">"
-            case Mode.ADMIN:
+            case ShellMode.ADMIN:
                 text += "#"
             case _:
                 # This should never happen. We use `assert_never` to
