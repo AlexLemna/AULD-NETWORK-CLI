@@ -2,28 +2,27 @@
 
 from __future__ import annotations
 
+# Import handlers to ensure they are registered
+from . import handlers  # noqa: F401
 from .commands import Command, CommandRegistry, _registry, command
+from .custom_types import Mode
 from .exceptions import AmbiguousCommandError, BaseCommandError, CommandNotFoundError
 from .handlers import h_configure, h_exit, h_help, h_show
 from .shell import Shell
-from .types import Mode
-
-# Import handlers to ensure they are registered
-from . import handlers  # noqa: F401
 
 __version__ = "0.1.0"
 __all__ = [
     "Command",
-    "CommandRegistry", 
+    "CommandRegistry",
     "_registry",
     "command",
     "AmbiguousCommandError",
-    "BaseCommandError", 
+    "BaseCommandError",
     "CommandNotFoundError",
     "Shell",
     "Mode",
     "h_configure",
-    "h_exit", 
+    "h_exit",
     "h_help",
     "h_show",
     "main",

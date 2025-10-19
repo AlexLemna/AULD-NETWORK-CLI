@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import assert_never
 
 from .commands import command
+from .custom_types import Mode
 from .shell import Shell
-from .types import Mode
 
 
 @command("configure", Mode.USER, "Enter privileged configuration mode")

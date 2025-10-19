@@ -5,7 +5,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Callable, Dict, List, Optional, Sequence, Tuple
 
-from .types import Mode
+from .custom_types import Mode
 
 if TYPE_CHECKING:
     from .shell import Shell
@@ -36,7 +36,7 @@ class Command:
 
 class CommandRegistry:
     """Registry for CLI commands with singleton pattern."""
-    
+
     _instance = None
 
     def __new__(cls):  # A singleton
@@ -106,7 +106,7 @@ def command(
     """Decorator to auto-register command handlers."""
 
     def decorator(func: Callable[[Shell], int]) -> Callable[[Shell], int]:
-        
+
         # Convert string to tuple if needed
         token_tuple = (tokens,) if isinstance(tokens, str) else tokens
         cmd = Command(
