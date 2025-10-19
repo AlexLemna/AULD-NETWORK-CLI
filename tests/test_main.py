@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Test suite for the Auld Network CLI main module.
 
@@ -15,7 +14,7 @@ from io import StringIO
 from unittest.mock import Mock, call, patch
 
 # Import the modules we want to test
-from main import (
+from auld_network_cli import (
     AmbiguousCommandError,
     BaseCommandError,
     Command,
